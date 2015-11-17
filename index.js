@@ -22,8 +22,9 @@ function OZWManager() {
   this.ozw.on('value removed', this.onValueRemoved.bind(this));
   this.ozw.on('node ready', this.onNodeReady.bind(this));
   this.ozw.on('scan complete', this.onScanComplete.bind(this));
+  this.ozw.on('notification', this.onNotification.bind(this));
 
-  this.ccMap = require('./service-map.json');
+  this.serviceMap = require('./service-map.json');
   this.deviceList = {};
   this.discoverState = 'stopped';
 }
@@ -55,6 +56,7 @@ OZWManager.prototype.onDriverFailed = function() {
 };
 
 OZWManager.prototype.onNodeAdded = function(nodeid) {
+  // TODO: emit device online event for device models loaded from persistent storage
   var device = new OZWDevice(this.ozw, nodeid);
   this.deviceList[nodeid] = device;
   // do not emit device online event until node ready
@@ -66,33 +68,47 @@ OZWManager.prototype.addDeviceStateVariable = function(nodeid, comClass, value) 
     device = new OZWDevice(this.ozw, nodeid);
     this.deviceList[nodeid] = device;
   }
-  var serviceID = this.ccMap[comClass];
+  var serviceID = this.serviceMap[comClass].id;
   if (!serviceID) {
     serviceID = comClass;
   }
   var spec = device.spec;
-  if (!spec.serviceList[serviceID]) {
-    spec.serviceList[serviceID] = {};
-    spec.serviceList[serviceID].serviceStateTable = {};
-    var table = spec.serviceList[serviceID].serviceStateTable;
-    // FIXME: handle multi instance value
-    var stateVar = table[value['label']];
-    if (!stateVar) {
-      stateVar = {};
-      stateVar.index = value.index;
-      stateVar.sendEvents = true;
-      stateVar.defaultValue = value['value'];
-    }
-  } else {
-    spec.serviceList[serviceID].serviceStateTable[value['label']].defaultValue = value['value'];
+  var name = value.label + '_' + value.instance;
+
+  if (!spec.device.serviceList[serviceID]) {
+    spec.device.serviceList[serviceID] = {};
+    spec.device.serviceList[serviceID].serviceStateTable = {};
   }
+  var table = spec.device.serviceList[serviceID].serviceStateTable;
+  if (!table[name]) {
+    table[name] = {};
+  }
+  var type = this.convertValueType(value.type);
+  table[name].dataType = type;
+  table[name].sendEvents = true;     // we can safely assume always true
+  table[name].defaultValue = value.value;
+  table[name].index = value.index;
+  // TODO: process list type
+  if (value.min != null && value.max != null && value.max > value.min) {
+    if (!table[name].allowedValueRange) {
+      table[name].allowedValueRange = {};
+      table[name].allowedValueRange.minimum = value.min;
+      table[name].allowedValueRange.maximum = value.max;
+    }
+  }
+  if (!spec.device.serviceList[serviceID].actionList) {
+    spec.device.serviceList[serviceID].actionList = {};
+  }
+  this.generateActionForValue(device, serviceID, name, value);
 };
 
 OZWManager.prototype.onValueAdded = function(nodeid, comClass, value) {
+  // TODO: emit device online event for device models loaded from persistent storage
   this.addDeviceStateVariable(nodeid, comClass, value);
 };
 
 OZWManager.prototype.onValueChanged = function(nodeid, comClass, value) {
+  // TODO: emit device online event for device models loaded from persistent storage
   this.addDeviceStateVariable(nodeid, comClass, value);
   var device = this.deviceList[nodeid];
   device.notifyValueUpdate(comClass, value);
@@ -108,12 +124,67 @@ OZWManager.prototype.onNodeReady = function(nodeid, nodeinfo) {
     device = new OZWDevice(this.ozw, nodeid);
     this.deviceList[nodeid] = device;
   }
-  device.nodeReady(nodeifo);
+  device.nodeReady(nodeinfo);
+  console.log(device.spec);
+  this.emit('deviceonline', device, this);
 };
 
 OZWManager.prototype.onScanComplete = function() {
   this.discoverState = 'stopped';
 };
 
+OZWManager.prototype.onNotification = function(nodeid, notif) {
+  // TODO: emit device online event for device models loaded from persistent storage
+};
+
+OZWManager.prototype.generateActionForValue = function(device, serviceID, name, value) {
+  var spec = device.spec;
+  var actionList = spec.device.serviceList[serviceID].actionList;
+  var actionNames = [];
+  if (value.write_only === true) {
+    actionNames.push('write ' + name);
+  } else if (value.read_only === true) {
+    actionNames.push('read ' + name);
+  } else {
+    actionNames.push('write ' + name);
+    actionNames.push('read ' + name);
+  }
+  for (var i in actionNames) {
+    var actionName = actionNames[i];
+
+    if (!actionList[actionName]) {
+      actionList[actionName] = {};
+      actionList[actionName].argumentList = {};
+      actionList[actionName].argumentList[name] = {};
+      actionList[actionName].argumentList[name].relatedStateVariable = name;
+      if (actionName.split(' ')[0] === 'read') {
+        actionList[actionName].argumentList[name].direction = 'out';
+      } else {
+        actionList[actionName].argumentList[name].direction = 'in';
+      }
+    }
+  }
+};
+
+OZWManager.prototype.convertValueType = function(ozwType) {
+  // see https://github.com/OpenZWave/open-zwave/wiki/Adding-Devices#configuration-variable-types
+  switch(ozwType) {
+    case 'bool':
+      return 'boolean';
+    case 'byte':
+      return 'uint8';
+    case 'decimal':
+      return 'float';
+    case 'int':
+      return 'uint32';
+    case 'short':
+      return 'uint16';
+    case 'list':
+    case 'string':
+      return 'string';
+    default:
+      return 'object';
+  }
+};
 
 module.exports = OZWManager;
