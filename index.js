@@ -1,35 +1,34 @@
 var util = require('util');
 var events = require('events');
 var DeviceDB = require('device-db');
-var OZW = require('openzwave');
+var OZW = require('openzwave-shared');
 var ModelStorage = require('./lib/model-storage');
 var OZWDevice = require('./lib/ozw-device');
 
+//TODO: support OZW security API
 function OZWManager() {
-  this.ozw = new OZW('/dev/ttyUSB0', { // FIXME: need to setup udev rules on system?
-          logging: true,           // enable logging to OZW_Log.txt
-          consoleoutput: false,     // copy logging to the console
-          saveconfig: true,        // write an XML network layout
-          driverattempts: 3,        // try this many times before giving up
-          pollinterval: 500,        // interval between polls in milliseconds
-          suppressrefresh: true     // do not send updates if nothing changed
+  this.ozw = new OZW({
+          Logging: true,            // enable logging to OZW_Log.txt
+          ConsoleOutput: true,      // copy logging to the console
   });
   this.ozw.on('connected', this.onConnected.bind(this));
   this.ozw.on('driver ready', this.onDriverReady.bind(this));
   this.ozw.on('driver failed', this.onDriverFailed.bind(this));
   this.ozw.on('node added', this.onNodeAdded.bind(this));
+  this.ozw.on('node ready', this.onNodeReady.bind(this));
+  this.ozw.on('node naming', this.onNodeNaming.bind(this));
+  this.ozw.on('node available', this.onNodeAvailable.bind(this));
   this.ozw.on('value added', this.onValueAdded.bind(this));
   this.ozw.on('value changed', this.onValueChanged.bind(this));
   this.ozw.on('value removed', this.onValueRemoved.bind(this));
-  this.ozw.on('node ready', this.onNodeReady.bind(this));
   this.ozw.on('scan complete', this.onScanComplete.bind(this));
   this.ozw.on('notification', this.onNotification.bind(this));
 
   this.deviceList = {};
-  this.modelStorage = new ModelStorage();
+  this.specStorage = new ModelStorage();
   this.serviceMap = require('./service-map.json');
   // device models load from persistent storage includes a history of avaiable device nodes
-  // by doing this we do need to do device inclusion on every fromework startup
+  // by doing this we don't need to do device inclusion on every fromework startup
   this.loadDeviceModelFromStorage();
   this.discoverState = 'stopped';
 }
@@ -40,7 +39,7 @@ OZWManager.prototype.discoverDevices = function() {
   if (this.discoverState === 'discovering') {
     return;
   }
-  this.ozw.connect();
+  this.ozw.connect('/dev/ttyUSB0');    // TODO: need to check udev?
   this.discoverState = 'discovering';
 };
 
@@ -50,20 +49,28 @@ OZWManager.prototype.stopDiscoverDevices = function() {
 
 OZWManager.prototype.onConnected = function() {
   // do nothing
+  console.log('onConnected');
 };
 
 OZWManager.prototype.onDriverReady = function(homeid) {
   this.homeid = homeid;
+  console.log('onConnected, home ID: ' + homeid);
 };
 
 OZWManager.prototype.onDriverFailed = function() {
   console.error('OZW driver failed');
+  this.ozw.disconnect('/dev/ttyUSB0');
+  console.log('onDriverFailed');
 };
 
 OZWManager.prototype.onNodeAdded = function(nodeid) {
   // TODO: emit device online event for device models loaded from persistent storage
-  var device = new OZWDevice(this.ozw, nodeid);
-  this.deviceList[nodeid] = device;
+  var device = this.deviceList[nodeid];
+  if (!device) {
+    device = new OZWDevice(this.ozw, nodeid);
+    this.deviceList[nodeid] = device;
+  }
+  console.log('onNodeAdded, nodeid: ' + nodeid);
   // do not emit device online event until node ready
 };
 
@@ -75,11 +82,10 @@ OZWManager.prototype.addDeviceStateVariable = function(nodeid, comClass, value) 
   }
   var serviceID = this.serviceMap[comClass].id;
   if (!serviceID) {
-    serviceID = comClass;
+    serviceID = comClass; // raw id for non-standard classes
   }
   var spec = device.spec;
   var name = value.label + '_' + value.instance;
-
   if (!spec.device.serviceList[serviceID]) {
     spec.device.serviceList[serviceID] = {};
     spec.device.serviceList[serviceID].serviceStateTable = {};
@@ -110,6 +116,7 @@ OZWManager.prototype.addDeviceStateVariable = function(nodeid, comClass, value) 
 OZWManager.prototype.onValueAdded = function(nodeid, comClass, value) {
   // TODO: emit device online event for device models loaded from persistent storage
   this.addDeviceStateVariable(nodeid, comClass, value);
+  console.log('onValueAdded, nodeid: %s, comClass: %s, value: %s', nodeid, comClass, value);
 };
 
 OZWManager.prototype.onValueChanged = function(nodeid, comClass, value) {
@@ -117,10 +124,12 @@ OZWManager.prototype.onValueChanged = function(nodeid, comClass, value) {
   this.addDeviceStateVariable(nodeid, comClass, value);
   var device = this.deviceList[nodeid];
   device.notifyValueUpdate(comClass, value);
+  console.log('onValueChanged, nodeid: %s, comClass: %s, value: %s', nodeid, comClass, value);
 };
 
 OZWManager.prototype.onValueRemoved = function(nodeid, comClass, index) {
   // do nothing for now
+  console.log('onValueRemoved, nodeid: %s, comClass: %s, index: %s', nodeid, comClass, index);
 };
 
 OZWManager.prototype.onNodeReady = function(nodeid, nodeinfo) {
@@ -130,21 +139,32 @@ OZWManager.prototype.onNodeReady = function(nodeid, nodeinfo) {
     this.deviceList[nodeid] = device;
   }
   device.nodeReady(nodeinfo);
-  console.log(device.spec);
-  this.modelStorage.setModelForNode(nodeid, JSON.stringify(device.spec));
+  console.log(JSON.stringify(device.spec));
+  this.specStorage.setSpecForNode(nodeid, JSON.stringify(device.spec));
   this.emit('deviceonline', device, this);
+  console.log('onNodeReady, nodeid: %s, nodeInfo: %s', nodeid, nodeinfo);
+};
+
+OZWManager.prototype.onNodeNaming = function(nodeid, nodeinfo) {
+  console.log('onNodeNaming, nodeid: %s, nodeInfo: %s', nodeid, nodeinfo);
+};
+
+OZWManager.prototype.onNodeAvailable = function(nodeid, nodeinfo) {
+  console.log('onNodeAvailable, nodeid: %s, nodeInfo: %s', nodeid, nodeinfo);
 };
 
 OZWManager.prototype.onScanComplete = function() {
   this.discoverState = 'stopped';
+  console.log('onScanComplete');
 };
 
 OZWManager.prototype.onNotification = function(nodeid, notif) {
   // TODO: emit device online event for device models loaded from persistent storage
+  console.log('onNotification, nodeid: %s, notif: %s', nodeid, notif);
 };
 
 OZWManager.prototype.loadDeviceModelFromStorage = function() {
-  this.modelStorage.getModelForAllNodes(function(err, rows) {
+  this.specStorage.getSpecForAllNodes(function(err, rows) {
     for (var i in rows) {
       var nodeid = rows[i].nodeid;
       var spec = rows[i].doc;
@@ -153,7 +173,7 @@ OZWManager.prototype.loadDeviceModelFromStorage = function() {
         device = new OZWDevice(this.ozw, nodeid);
         this.deviceList[nodeid] = device;
       }
-      device.spec = spec;
+      device.spec = JSON.parse(spec);
     }
   }.bind(this));
 }
