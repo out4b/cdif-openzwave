@@ -53,8 +53,8 @@ OZWManager.prototype.onDriverReady = function(homeid) {
 };
 
 OZWManager.prototype.onDriverFailed = function() {
-  console.error('OZW driver failed');
-  this.ozw.disconnect('/dev/ttyUSB0');
+  // below call will block the framework if controller is not present
+  // this.ozw.disconnect('/dev/ttyUSB0');
   console.log('onDriverFailed');
 };
 
@@ -85,6 +85,7 @@ OZWManager.prototype.onValueChanged = function(nodeid, comClass, value) {
   }
   this.addValueToDeviceSpec(device, comClass, value);
   if (!device.deviceID) {
+    device.updateDeviceSpec(device.spec);
     device.setupDeviceCalls();
     this.emit('deviceonline', device, this);
   } else {
@@ -105,6 +106,7 @@ OZWManager.prototype.onNodeReady = function(nodeid, nodeinfo) {
     this.deviceList[nodeid] = device;
   }
   device.setNodeInfo(nodeinfo);
+  device.updateDeviceSpec(device.spec);
   device.setupDeviceCalls();
   this.emit('deviceonline', device, this);
   console.log('onNodeReady, nodeid: %s, nodeInfo: %s', nodeid, nodeinfo);
@@ -127,6 +129,7 @@ OZWManager.prototype.onNodeAvailable = function(nodeid, nodeinfo) {
     this.deviceList[nodeid] = device;
   }
   device.setNodeInfo(nodeinfo);
+  device.updateDeviceSpec(device.spec);
   device.setupDeviceCalls();
   this.emit('deviceonline', device, this);
   console.log('onNodeAvailable, nodeid: %s, nodeInfo: %s', nodeid, nodeinfo);
@@ -150,11 +153,12 @@ OZWManager.prototype.addValueToDeviceSpec = function(device, comClass, value) {
   var name = value.label + '_' + value.instance;
   if (spec.device.serviceList[serviceID]) {
     if (spec.device.serviceList[serviceID].serviceStateTable[name]) {
-      return;
+      return false;
     }
   }
   if (!spec.device.serviceList[serviceID]) {
     spec.device.serviceList[serviceID] = {};
+    spec.device.serviceList[serviceID].comClass = comClass;
     spec.device.serviceList[serviceID].serviceStateTable = {};
   }
   var table = spec.device.serviceList[serviceID].serviceStateTable;
@@ -178,6 +182,7 @@ OZWManager.prototype.addValueToDeviceSpec = function(device, comClass, value) {
     spec.device.serviceList[serviceID].actionList = {};
   }
   this.generateActionForValue(device, serviceID, name, value);
+  return true;
 };
 
 OZWManager.prototype.generateActionForValue = function(device, serviceID, name, value) {
