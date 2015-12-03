@@ -49,7 +49,7 @@ OZWManager.prototype.onConnected = function() {
 
 OZWManager.prototype.onDriverReady = function(homeid) {
   this.homeid = homeid;
-  console.log('onConnected, home ID: ' + homeid);
+  console.log('onDriverReady, home ID: ' + homeid);
 };
 
 OZWManager.prototype.onDriverFailed = function() {
