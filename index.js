@@ -8,7 +8,7 @@ var OZWDevice = require('./lib/ozw-device');
 function OZWManager() {
   this.ozw = new OZW({
           Logging: true,            // enable logging to OZW_Log.txt
-          ConsoleOutput: true,      // copy logging to the console
+          ConsoleOutput: false,     // copy logging to the console
   });
   this.ozw.on('driver ready', this.onDriverReady.bind(this));
   this.ozw.on('driver failed', this.onDriverFailed.bind(this));
@@ -85,7 +85,7 @@ OZWManager.prototype.onValueChanged = function(nodeid, comClass, value) {
   } else {
     device.notifyValueUpdate(comClass, value);
   }
-  console.log('onValueChanged, nodeid: %s, comClass: %s, value: %s', nodeid, comClass, value);
+  console.log('onValueChanged, nodeid: %s, comClass: %s, value: %s', nodeid, comClass, JSON.stringify(value));
 };
 
 OZWManager.prototype.onValueRemoved = function(nodeid, comClass, index) {

@@ -1,4 +1,4 @@
-Notes to CDIF's open zwave module implementation
+Notes to CDIF's open zwave implementation
 ---------------------------------------
 The concept of Z-Wave's command class and values are similar to other open standards which categorized them into "services", "characteristics" or "state variables". So in this module's design we decide to map them accordingly. E.g. the concept of command class would be equal to service, and value equal to state variable which is managed by the service. We use this to create the device model for Z-Wave based devices. After connected to the Z-Wave network, this module would listen to the Z-Wave library events and selectively emit device event to CDIF.
 
@@ -11,7 +11,7 @@ Limitations
 At this time below Z-Wave features are not supported:
 * Association group and scene control (these features may be fulfilled by the rules engine built on top of CDIF)
 * Z-Wave global operations such as device polling, network healing, controller reset etc. (maybe we can wrap them as controller's service)
-* Security API (*Ehhhr?*)
+* Security API (*Ehhhr..*)
 
 
 
