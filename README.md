@@ -9,8 +9,8 @@ Due to Z-Wave's low power design, commands are not guaranteed to always successf
 Since there is no reliable way to query a Z-Wave device for its latest status, this implementation would return CDIF's cached status value to the client upon a read action call. Since zwave.setValue() doesn't return error, value write action calls would assume always success and update CDIF's cached value status, which would also be updated by 'value change' event.
 
 Due to device availability, for now this module is only tested with below products:
-[Fibaro FGMS-001 motion sensor](http://www.fibaro.com/en/the-fibaro-system/motion-sensor)
-[Fibaro FGWPE-101 wall plug](http://www.fibaro.com/en/the-fibaro-system/wall-plug)
+* [Fibaro FGMS-001 motion sensor](http://www.fibaro.com/en/the-fibaro-system/motion-sensor)
+* [Fibaro FGWPE-101 wall plug](http://www.fibaro.com/en/the-fibaro-system/wall-plug)
 
 #####Limitations
 At this time below Z-Wave features are not supported:
