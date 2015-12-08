@@ -72,15 +72,14 @@ OZWManager.prototype.onValueChanged = function(nodeid, comClass, value) {
     device = new OZWDevice(this.ozw, nodeid);
     this.deviceList[nodeid] = device;
   }
-  //FIXME: is it a possible case that new value would be added here?
-  device.addValueToDeviceSpec(comClass, value);
-  if (!device.deviceID) {
+  if (device.addValueToDeviceSpec(comClass, value)) {
     device.updateDeviceSpec(device.spec);
     device.setupDeviceCalls();
-    this.emit('deviceonline', device, this);
-  } else {
-    device.notifyValueUpdate(comClass, value);
   }
+  if (!device.deviceID) {
+    this.emit('deviceonline', device, this);
+  }
+  device.notifyValueUpdate(comClass, value);
 };
 
 OZWManager.prototype.onValueRemoved = function(nodeid, comClass, index) {
