@@ -8,8 +8,6 @@
     "deviceType": "urn:openzwave-com:device:Unknown:1",
     "friendlyName": "",
     "manufacturer": "",
-    "modelNumber": "",
-    "serialNumber": "",
     "userAuth": false,
     "serviceList": {}
   }
