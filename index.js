@@ -45,7 +45,7 @@ OZWManager.prototype.onDriverReady = function(homeid) {
 };
 
 OZWManager.prototype.onDriverFailed = function() {
-  // below call will block the framework if controller is not present
+  // below call will block framework if controller is not present
   // this.ozw.disconnect('/dev/ttyUSB0');
 };
 
@@ -64,6 +64,11 @@ OZWManager.prototype.onValueAdded = function(nodeid, comClass, value) {
     this.deviceList[nodeid] = device;
   }
   device.addValueToDeviceSpec(comClass, value);
+  if (device.deviceID) {
+    device.updateDeviceSpec(device.spec);
+    device.setupDeviceCalls();
+    this.emit('deviceonline', device, this);
+  }
 };
 
 OZWManager.prototype.onValueChanged = function(nodeid, comClass, value) {
@@ -72,8 +77,8 @@ OZWManager.prototype.onValueChanged = function(nodeid, comClass, value) {
     device = new OZWDevice(this.ozw, nodeid);
     this.deviceList[nodeid] = device;
   }
-  device.addValueToDeviceSpec(comClass, value);
-  if (!device.deviceID) {
+  var ret = device.addValueToDeviceSpec(comClass, value);
+  if (!device.deviceID || ret === true) {
     device.updateDeviceSpec(device.spec);
     device.setupDeviceCalls();
     this.emit('deviceonline', device, this);
