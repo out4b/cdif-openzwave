@@ -63,7 +63,7 @@ OZWManager.prototype.onValueAdded = function(nodeid, comClass, value) {
     device = new OZWDevice(this.ozw, nodeid);
     this.deviceList[nodeid] = device;
   }
-  device.addValueToDeviceSpec(comClass, value);
+  device.addValueToDeviceSpec(comClass, value, false);
   if (device.deviceID) {
     device.updateDeviceSpec(device.spec);
     device.setupDeviceCalls();
@@ -77,7 +77,7 @@ OZWManager.prototype.onValueChanged = function(nodeid, comClass, value) {
     device = new OZWDevice(this.ozw, nodeid);
     this.deviceList[nodeid] = device;
   }
-  var ret = device.addValueToDeviceSpec(comClass, value);
+  var ret = device.addValueToDeviceSpec(comClass, value, true);
   if (!device.deviceID || ret === true) {
     device.updateDeviceSpec(device.spec);
     device.setupDeviceCalls();
