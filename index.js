@@ -8,7 +8,7 @@ var OZWDevice = require('./lib/ozw-device');
 function OZWManager() {
   this.ozw = new OZW({
           Logging: true,            // enable logging to OZW_Log.txt
-          ConsoleOutput: false,     // copy logging to the console
+          ConsoleOutput: true,      // copy logging to the console
   });
   this.ozw.on('connected', this.onConnected.bind(this));
   this.ozw.on('driver ready', this.onDriverReady.bind(this));
@@ -83,6 +83,7 @@ OZWManager.prototype.onValueChanged = function(nodeid, comClass, value) {
     device = new OZWDevice(this.ozw, nodeid);
     this.deviceList[nodeid] = device;
   }
+  //FIXME: is it a possible case that new value would be added here?
   this.addValueToDeviceSpec(device, comClass, value);
   if (!device.deviceID) {
     device.updateDeviceSpec(device.spec);
