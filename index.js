@@ -2,14 +2,13 @@ var util = require('util');
 var events = require('events');
 var DeviceDB = require('device-db');
 var OZW = require('openzwave-shared');
-var ModelStorage = require('./lib/model-storage');
 var OZWDevice = require('./lib/ozw-device');
 
 //TODO: support OZW security API
 function OZWManager() {
   this.ozw = new OZW({
           Logging: true,            // enable logging to OZW_Log.txt
-          ConsoleOutput: true,      // copy logging to the console
+          ConsoleOutput: false,     // copy logging to the console
   });
   this.ozw.on('connected', this.onConnected.bind(this));
   this.ozw.on('driver ready', this.onDriverReady.bind(this));
@@ -25,11 +24,7 @@ function OZWManager() {
   this.ozw.on('notification', this.onNotification.bind(this));
 
   this.deviceList = {};
-  this.specStorage = new ModelStorage();
   this.serviceMap = require('./service-map.json');
-  // device models load from persistent storage includes a history of avaiable device nodes
-  // by doing this we don't need to do device inclusion on every fromework startup
-  this.loadDeviceModelFromStorage();
   this.discoverState = 'stopped';
 }
 
@@ -72,6 +67,80 @@ OZWManager.prototype.onNodeAdded = function(nodeid) {
   console.log('onNodeAdded, nodeid: ' + nodeid);
 };
 
+OZWManager.prototype.onValueAdded = function(nodeid, comClass, value) {
+  var device = this.deviceList[nodeid];
+  if (!device) {
+    device = new OZWDevice(this.ozw, nodeid);
+    this.deviceList[nodeid] = device;
+  }
+  this.addValueToDeviceSpec(device, comClass, value);
+  console.log('onValueAdded, nodeid: %s, comClass: %s, value: %s', nodeid, comClass, value);
+};
+
+OZWManager.prototype.onValueChanged = function(nodeid, comClass, value) {
+  var device = this.deviceList[nodeid];
+  if (!device) {
+    device = new OZWDevice(this.ozw, nodeid);
+    this.deviceList[nodeid] = device;
+  }
+  this.addValueToDeviceSpec(device, comClass, value);
+  if (!device.deviceID) {
+    device.setupDeviceCalls();
+    this.emit('deviceonline', device, this);
+  } else {
+    device.notifyValueUpdate(comClass, value);
+  }
+  console.log('onValueChanged, nodeid: %s, comClass: %s, value: %s', nodeid, comClass, value);
+};
+
+OZWManager.prototype.onValueRemoved = function(nodeid, comClass, index) {
+  //TODO
+  console.log('onValueRemoved, nodeid: %s, comClass: %s, index: %s', nodeid, comClass, index);
+};
+
+OZWManager.prototype.onNodeReady = function(nodeid, nodeinfo) {
+  var device = this.deviceList[nodeid];
+  if (!device) {
+    device = new OZWDevice(this.ozw, nodeid);
+    this.deviceList[nodeid] = device;
+  }
+  device.setNodeInfo(nodeinfo);
+  device.setupDeviceCalls();
+  this.emit('deviceonline', device, this);
+  console.log('onNodeReady, nodeid: %s, nodeInfo: %s', nodeid, nodeinfo);
+};
+
+OZWManager.prototype.onNodeNaming = function(nodeid, nodeinfo) {
+  var device = this.deviceList[nodeid];
+  if (!device) {
+    device = new OZWDevice(this.ozw, nodeid);
+    this.deviceList[nodeid] = device;
+  }
+  device.setNodeInfo(nodeinfo);
+  console.log('onNodeNaming, nodeid: %s, nodeInfo: %s', nodeid, nodeinfo);
+};
+
+OZWManager.prototype.onNodeAvailable = function(nodeid, nodeinfo) {
+  var device = this.deviceList[nodeid];
+  if (!device) {
+    device = new OZWDevice(this.ozw, nodeid);
+    this.deviceList[nodeid] = device;
+  }
+  device.setNodeInfo(nodeinfo);
+  device.setupDeviceCalls();
+  this.emit('deviceonline', device, this);
+  console.log('onNodeAvailable, nodeid: %s, nodeInfo: %s', nodeid, nodeinfo);
+};
+
+OZWManager.prototype.onScanComplete = function() {
+  this.discoverState = 'stopped';
+};
+
+OZWManager.prototype.onNotification = function(nodeid, notif) {
+  // TODO
+  console.log('onNotification, nodeid: %s, notif: %s', nodeid, notif);
+};
+
 OZWManager.prototype.addValueToDeviceSpec = function(device, comClass, value) {
   var serviceID = this.serviceMap[comClass].id;
   if (!serviceID) {
@@ -110,95 +179,6 @@ OZWManager.prototype.addValueToDeviceSpec = function(device, comClass, value) {
   }
   this.generateActionForValue(device, serviceID, name, value);
 };
-
-OZWManager.prototype.onValueAdded = function(nodeid, comClass, value) {
-  var device = this.deviceList[nodeid];
-  if (!device) {
-    device = new OZWDevice(this.ozw, nodeid);
-    this.deviceList[nodeid] = device;
-  }
-  this.addValueToDeviceSpec(device, comClass, value);
-  console.log('onValueAdded, nodeid: %s, comClass: %s, value: %s', nodeid, comClass, value);
-};
-
-OZWManager.prototype.onValueChanged = function(nodeid, comClass, value) {
-  var device = this.deviceList[nodeid];
-  this.specStorage.getSpecForNode(nodeid, function(err, data) {
-    if (err) {
-      console.error('get node spec failed');
-      return;
-    }
-    console.log(data);
-    if (!data || !data.spec || data.spec === '') {
-      if (!device) {
-        device = new OZWDevice(this.ozw, nodeid);
-        this.deviceList[nodeid] = device;
-      }
-      this.addValueToDeviceSpec(device, comClass, value);
-    } else {
-      if (!device || !device.deviceID) {
-        device = new OZWDevice(this.ozw, nodeid, JSON.parse(data.spec));
-        device.setup();
-        this.deviceList[nodeid] = device;
-        this.emit('deviceonline', device, this);
-      } else {
-        device.notifyValueUpdate(comClass, value);
-      }
-    }
-  }.bind(this));
-  console.log('onValueChanged, nodeid: %s, comClass: %s, value: %s', nodeid, comClass, value);
-};
-
-OZWManager.prototype.onValueRemoved = function(nodeid, comClass, index) {
-  console.log('onValueRemoved, nodeid: %s, comClass: %s, index: %s', nodeid, comClass, index);
-};
-
-OZWManager.prototype.onNodeReady = function(nodeid, nodeinfo) {
-  var device = this.deviceList[nodeid];
-  if (!device) {
-    device = new OZWDevice(this.ozw, nodeid);
-    this.deviceList[nodeid] = device;
-  }
-  device.nodeReady(nodeinfo);
-  console.log(JSON.stringify(device.spec));
-  this.specStorage.setSpecForNode(nodeid, JSON.stringify(device.spec));
-  if (!device.deviceID) {
-    this.emit('deviceonline', device, this);
-  }
-  console.log('onNodeReady, nodeid: %s, nodeInfo: %s', nodeid, nodeinfo);
-};
-
-OZWManager.prototype.onNodeNaming = function(nodeid, nodeinfo) {
-  console.log('onNodeNaming, nodeid: %s, nodeInfo: %s', nodeid, nodeinfo);
-};
-
-OZWManager.prototype.onNodeAvailable = function(nodeid, nodeinfo) {
-  console.log('onNodeAvailable, nodeid: %s, nodeInfo: %s', nodeid, nodeinfo);
-};
-
-OZWManager.prototype.onScanComplete = function() {
-  this.discoverState = 'stopped';
-};
-
-OZWManager.prototype.onNotification = function(nodeid, notif) {
-  // TODO: emit device online event for device models loaded from persistent storage
-  console.log('onNotification, nodeid: %s, notif: %s', nodeid, notif);
-};
-
-OZWManager.prototype.loadDeviceModelFromStorage = function() {
-  this.specStorage.getSpecForAllNodes(function(err, rows) {
-    for (var i in rows) {
-      var nodeid = rows[i].nodeid;
-      var spec = rows[i].spec;
-      var device = this.deviceList[nodeid];
-      if (!device) {
-        device = new OZWDevice(this.ozw, nodeid);
-        this.deviceList[nodeid] = device;
-      }
-      device.spec = JSON.parse(spec);
-    }
-  }.bind(this));
-}
 
 OZWManager.prototype.generateActionForValue = function(device, serviceID, name, value) {
   var spec = device.spec;
