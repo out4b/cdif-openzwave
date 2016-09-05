@@ -21,6 +21,6 @@
   },
   "homepage": "https://github.com/out4b/cdif-openzwave",
   "dependencies": {
-    "openzwave": "0.0.33"
+    "openzwave-shared": "^1.1.4"
   }
 }
