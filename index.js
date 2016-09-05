@@ -72,14 +72,14 @@ OZWManager.prototype.onValueChanged = function(nodeid, comClass, value) {
     device = new OZWDevice(this.ozw, nodeid);
     this.deviceList[nodeid] = device;
   }
-  if (device.addValueToDeviceSpec(comClass, value)) {
+  device.addValueToDeviceSpec(comClass, value);
+  if (!device.deviceID) {
     device.updateDeviceSpec(device.spec);
     device.setupDeviceCalls();
-  }
-  if (!device.deviceID) {
     this.emit('deviceonline', device, this);
+  } else {
+    device.notifyValueUpdate(comClass, value);
   }
-  device.notifyValueUpdate(comClass, value);
 };
 
 OZWManager.prototype.onValueRemoved = function(nodeid, comClass, index) {
