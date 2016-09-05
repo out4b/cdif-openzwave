@@ -1,0 +1,16 @@
+{
+  "configId": 1,
+  "specVersion": {
+    "major": 1,
+    "minor": 0
+  },
+  "device": {
+    "deviceType": "urn:openzwave-com:device:Unknown:1",
+    "friendlyName": "",
+    "manufacturer": "",
+    "modelNumber": "",
+    "serialNumber": "",
+    "userAuth": false,
+    "serviceList": {}
+  }
+}
