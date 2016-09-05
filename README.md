@@ -12,7 +12,7 @@ Due to device availability, for now this module is only tested with below produc
 * [Fibaro FGMS-001 motion sensor](http://www.fibaro.com/en/the-fibaro-system/motion-sensor)
 * [Fibaro FGWPE-101 wall plug](http://www.fibaro.com/en/the-fibaro-system/wall-plug)
 
-#####Limitations
+##### Limitations
 At this time below Z-Wave features are not supported:
 * Association group and scene control (maybe these features could be fulfilled by the rules engine built on top of CDIF)
 * Z-Wave global operations such as device polling, network healing, controller reset etc. (maybe they can be wrapped as controller's service)
