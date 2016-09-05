@@ -53,8 +53,8 @@ OZWManager.prototype.onDriverReady = function(homeid) {
 };
 
 OZWManager.prototype.onDriverFailed = function() {
-  console.error('OZW driver failed');
-  this.ozw.disconnect('/dev/ttyUSB0');
+  // below call will block the framework if controller is not present
+  // this.ozw.disconnect('/dev/ttyUSB0');
   console.log('onDriverFailed');
 };
 
