@@ -2,6 +2,7 @@ var util = require('util');
 var events = require('events');
 var DeviceDB = require('device-db');
 var OZW = require('openzwave');
+var ModelStorage = require('./lib/model-storage');
 var OZWDevice = require('./lib/ozw-device');
 
 function OZWManager() {
@@ -24,8 +25,12 @@ function OZWManager() {
   this.ozw.on('scan complete', this.onScanComplete.bind(this));
   this.ozw.on('notification', this.onNotification.bind(this));
 
-  this.serviceMap = require('./service-map.json');
   this.deviceList = {};
+  this.modelStorage = new ModelStorage();
+  this.serviceMap = require('./service-map.json');
+  // device models load from persistent storage includes a history of avaiable device nodes
+  // by doing this we do need to do device inclusion on every fromework startup
+  this.loadDeviceModelFromStorage();
   this.discoverState = 'stopped';
 }
 
@@ -126,6 +131,7 @@ OZWManager.prototype.onNodeReady = function(nodeid, nodeinfo) {
   }
   device.nodeReady(nodeinfo);
   console.log(device.spec);
+  this.modelStorage.setModelForNode(nodeid, JSON.stringify(device.spec));
   this.emit('deviceonline', device, this);
 };
 
@@ -136,6 +142,21 @@ OZWManager.prototype.onScanComplete = function() {
 OZWManager.prototype.onNotification = function(nodeid, notif) {
   // TODO: emit device online event for device models loaded from persistent storage
 };
+
+OZWManager.prototype.loadDeviceModelFromStorage = function() {
+  this.modelStorage.getModelForAllNodes(function(err, rows) {
+    for (var i in rows) {
+      var nodeid = rows[i].nodeid;
+      var spec = rows[i].doc;
+      var device = this.deviceList[nodeid];
+      if (!device) {
+        device = new OZWDevice(this.ozw, nodeid);
+        this.deviceList[nodeid] = device;
+      }
+      device.spec = spec;
+    }
+  }.bind(this));
+}
 
 OZWManager.prototype.generateActionForValue = function(device, serviceID, name, value) {
   var spec = device.spec;
@@ -167,18 +188,15 @@ OZWManager.prototype.generateActionForValue = function(device, serviceID, name, 
 };
 
 OZWManager.prototype.convertValueType = function(ozwType) {
-  // see https://github.com/OpenZWave/open-zwave/wiki/Adding-Devices#configuration-variable-types
+  // refer from https://github.com/OpenZWave/open-zwave/wiki/Adding-Devices#configuration-variable-types
   switch(ozwType) {
     case 'bool':
       return 'boolean';
     case 'byte':
-      return 'uint8';
     case 'decimal':
-      return 'float';
     case 'int':
-      return 'uint32';
     case 'short':
-      return 'uint16';
+      return 'number';
     case 'list':
     case 'string':
       return 'string';
@@ -186,5 +204,6 @@ OZWManager.prototype.convertValueType = function(ozwType) {
       return 'object';
   }
 };
+
 
 module.exports = OZWManager;
