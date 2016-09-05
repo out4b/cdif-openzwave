@@ -42,13 +42,11 @@ OZWManager.prototype.stopDiscoverDevices = function() {
 
 OZWManager.prototype.onDriverReady = function(homeid) {
   this.homeid = homeid;
-  console.log('onDriverReady, home ID: ' + homeid);
 };
 
 OZWManager.prototype.onDriverFailed = function() {
   // below call will block the framework if controller is not present
   // this.ozw.disconnect('/dev/ttyUSB0');
-  console.log('onDriverFailed');
 };
 
 OZWManager.prototype.onNodeAdded = function(nodeid) {
@@ -57,7 +55,6 @@ OZWManager.prototype.onNodeAdded = function(nodeid) {
     device = new OZWDevice(this.ozw, nodeid);
     this.deviceList[nodeid] = device;
   }
-  console.log('onNodeAdded, nodeid: ' + nodeid);
 };
 
 OZWManager.prototype.onValueAdded = function(nodeid, comClass, value) {
@@ -67,7 +64,6 @@ OZWManager.prototype.onValueAdded = function(nodeid, comClass, value) {
     this.deviceList[nodeid] = device;
   }
   device.addValueToDeviceSpec(comClass, value);
-  console.log('onValueAdded, nodeid: %s, comClass: %s, value: %s', nodeid, comClass, value);
 };
 
 OZWManager.prototype.onValueChanged = function(nodeid, comClass, value) {
@@ -85,12 +81,10 @@ OZWManager.prototype.onValueChanged = function(nodeid, comClass, value) {
   } else {
     device.notifyValueUpdate(comClass, value);
   }
-  console.log('onValueChanged, nodeid: %s, comClass: %s, value: %s', nodeid, comClass, JSON.stringify(value));
 };
 
 OZWManager.prototype.onValueRemoved = function(nodeid, comClass, index) {
   //TODO
-  console.log('onValueRemoved, nodeid: %s, comClass: %s, index: %s', nodeid, comClass, index);
 };
 
 OZWManager.prototype.onNodeReady = function(nodeid, nodeinfo) {
@@ -103,7 +97,6 @@ OZWManager.prototype.onNodeReady = function(nodeid, nodeinfo) {
   device.updateDeviceSpec(device.spec);
   device.setupDeviceCalls();
   this.emit('deviceonline', device, this);
-  console.log('onNodeReady, nodeid: %s, nodeInfo: %s', nodeid, nodeinfo);
 };
 
 OZWManager.prototype.onNodeNaming = function(nodeid, nodeinfo) {
@@ -113,7 +106,6 @@ OZWManager.prototype.onNodeNaming = function(nodeid, nodeinfo) {
     this.deviceList[nodeid] = device;
   }
   device.setNodeInfo(nodeinfo);
-  console.log('onNodeNaming, nodeid: %s, nodeInfo: %s', nodeid, nodeinfo);
 };
 
 OZWManager.prototype.onNodeAvailable = function(nodeid, nodeinfo) {
@@ -126,7 +118,6 @@ OZWManager.prototype.onNodeAvailable = function(nodeid, nodeinfo) {
   device.updateDeviceSpec(device.spec);
   device.setupDeviceCalls();
   this.emit('deviceonline', device, this);
-  console.log('onNodeAvailable, nodeid: %s, nodeInfo: %s', nodeid, nodeinfo);
 };
 
 OZWManager.prototype.onScanComplete = function() {
@@ -135,7 +126,6 @@ OZWManager.prototype.onScanComplete = function() {
 
 OZWManager.prototype.onNotification = function(nodeid, notif) {
   // TODO
-  console.log('onNotification, nodeid: %s, notif: %s', nodeid, notif);
 };
 
 module.exports = OZWManager;

@@ -1,6 +1,6 @@
 Notes to CDIF's open zwave implementation
 ---------------------------------------
-This module relies on [openzwave-shared](https://www.npmjs.com/package/openzwave-shared) module, please refer to its [prerequisites page](https://www.npmjs.com/package/openzwave-shared#prerequisites) on how to install it on the system.
+This module relies on [openzwave-shared](https://www.npmjs.com/package/openzwave-shared), please refer to its [prerequisites](https://www.npmjs.com/package/openzwave-shared#prerequisites) on how to install it on the system.
 
 The concept of Z-Wave's command class and values are similar to other open standards which categorized them into "services", "characteristics" or "state variables". So in this module's design we decide to map them accordingly. E.g. the concept of command class would be equal to service, and value equal to state variable which is managed by the service. We use this to create the device model for Z-Wave based devices. After connected to the Z-Wave network, this module would listen to the Z-Wave library events and selectively emit device event to CDIF.
 
@@ -8,12 +8,15 @@ Due to Z-Wave's low power design, commands are not guaranteed to always successf
 
 Since there is no reliable way to query a Z-Wave device for its latest status, this implementation would return CDIF's cached status value to the client upon a read action call. Since zwave.setValue() doesn't return error, value write action calls would assume always success and update CDIF's cached value status, which would also be updated by 'value change' event.
 
-Limitations
------------
+Due to device availability, for now this module is only tested with below products:
+[Fibaro FGMS-001 motion sensor](http://www.fibaro.com/en/the-fibaro-system/motion-sensor)
+[Fibaro FGWPE-101 wall plug](http://www.fibaro.com/en/the-fibaro-system/wall-plug)
+
+#####Limitations
 At this time below Z-Wave features are not supported:
-* Association group and scene control (these features may be fulfilled by the rules engine built on top of CDIF)
-* Z-Wave global operations such as device polling, network healing, controller reset etc. (maybe we can wrap them as controller's service)
-* Security API (*Ehhhr..*)
+* Association group and scene control (maybe these features could be fulfilled by the rules engine built on top of CDIF)
+* Z-Wave global operations such as device polling, network healing, controller reset etc. (maybe they can be wrapped as controller's service)
+* Security API
 
 
 
@@ -21,4 +24,4 @@ See following links for more details: <br/>
 
 [Common device interconnect framework](https://github.com/out4b/cdif)
 
-[Open Z-Wave library](https://github.com/jperkin/node-openzwave)
+[Open Z-Wave library](https://www.npmjs.com/package/openzwave-shared)
